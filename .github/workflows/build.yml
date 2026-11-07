@@ -1,4 +1,4 @@
-name: Build ReaCut for macOS
+name: Build ReaCut (macOS)
 # Started by scripts/release-friends.sh in the private source repo.
 on:
   workflow_dispatch:
