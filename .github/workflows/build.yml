@@ -63,6 +63,11 @@ jobs:
           ditto -x -k "release/ReaCut-$v-arm64-mac.zip" /tmp/check
           codesign --verify --deep --strict /tmp/check/ReaCut.app
           test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' /tmp/check/ReaCut.app/Contents/Info.plist)" = "$v"
+      - name: Per-file update assets
+        run: |
+          set -euo pipefail
+          v="$(node -p 'require("./package.json").version')"
+          if [ -f scripts/make-update-files.mjs ]; then node scripts/make-update-files.mjs /tmp/check/ReaCut.app release/delta "$v" arm64; fi
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -78,3 +83,4 @@ jobs:
           notes="$(git -C .. log -1 --format=%B "$TAG" 2>/dev/null || true)"
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "ReaCut $v" --notes "${notes:-ReaCut $v}" \
             "ReaCut-$v-arm64.dmg" "ReaCut-$v-arm64-mac.zip" "ReaCut-$v-media-tool-sources.tar.gz" LICENSE.txt THIRD_PARTY_NOTICES.md SHA256SUMS.txt
+          if [ -d delta ]; then gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" delta/*; fi
