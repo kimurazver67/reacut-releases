@@ -4,7 +4,7 @@
 
 ## Установка (один раз)
 
-1. Откройте [последний релиз](../../releases/latest) и скачайте `ReaCut-…-arm64.dmg` (Mac на Apple M1–M4).
+1. Скачайте **[ReaCut-mac.dmg](https://github.com/kimurazver67/reacut-releases/releases/latest/download/ReaCut-mac.dmg)** (Mac на Apple M1–M4). Файлы `blob-*.gz` в релизе — для автообновления, их скачивать не нужно.
 2. Откройте DMG и перетащите ReaCut в «Программы».
 3. Программа не подписана Apple, поэтому macOS её заблокирует. Откройте Терминал и выполните:
    ```

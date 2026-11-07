@@ -79,8 +79,11 @@ jobs:
           cp THIRD_PARTY_NOTICES.md release/THIRD_PARTY_NOTICES.md
           tar -czf "release/ReaCut-$v-media-tool-sources.tar.gz" -C media-tools/darwin-arm64 sources licenses manifest.json
           cd release
+          cp "ReaCut-$v-arm64.dmg" ReaCut-mac.dmg
           shasum -a 256 "ReaCut-$v-arm64.dmg" "ReaCut-$v-arm64-mac.zip" "ReaCut-$v-media-tool-sources.tar.gz" > SHA256SUMS.txt
           notes="$(git -C .. log -1 --format=%B "$TAG" 2>/dev/null || true)"
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "ReaCut $v" --notes "${notes:-ReaCut $v}" \
-            "ReaCut-$v-arm64.dmg" "ReaCut-$v-arm64-mac.zip" "ReaCut-$v-media-tool-sources.tar.gz" LICENSE.txt THIRD_PARTY_NOTICES.md SHA256SUMS.txt
+          dl="https://github.com/$GITHUB_REPOSITORY/releases/latest/download/ReaCut-mac.dmg"
+          notes="$(printf '### ⬇️ Скачать: [ReaCut-mac.dmg](%s) (Mac M1–M4)\nПосле установки один раз в Терминале: `xattr -cr /Applications/ReaCut.app`. Файлы blob-*.gz — для автообновления, скачивать их не нужно.\n\n%s' "$dl" "${notes:-ReaCut $v}")"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "ReaCut $v" --notes "$notes" \
+            ReaCut-mac.dmg "ReaCut-$v-arm64.dmg" "ReaCut-$v-arm64-mac.zip" "ReaCut-$v-media-tool-sources.tar.gz" LICENSE.txt THIRD_PARTY_NOTICES.md SHA256SUMS.txt
           if [ -d delta ]; then gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" delta/*; fi
