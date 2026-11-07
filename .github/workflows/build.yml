@@ -52,6 +52,7 @@ jobs:
       - run: npm run media:build
       - run: npx vitest run --exclude '**/*.integration.test.ts'
         env:
+          NODE_OPTIONS: --max-old-space-size=6144
           REACUT_FFMPEG: ${{ github.workspace }}/src/media-tools/darwin-arm64/ffmpeg
           REACUT_FFPROBE: ${{ github.workspace }}/src/media-tools/darwin-arm64/ffprobe
       - run: npm run licenses
