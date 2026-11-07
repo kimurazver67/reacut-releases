@@ -1,0 +1,77 @@
+name: Build ReaCut for macOS
+# Started by scripts/release-friends.sh in the private source repo.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Тег версии в kimurazver67/reacut, например v0.8.0'
+        required: true
+permissions:
+  contents: write
+concurrency:
+  group: build-${{ inputs.tag }}
+  cancel-in-progress: false
+jobs:
+  mac-arm64:
+    runs-on: macos-15
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+        working-directory: src
+    steps:
+      - name: Validate tag
+        working-directory: .
+        env:
+          TAG: ${{ inputs.tag }}
+        run: '[[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]'
+      - uses: actions/checkout@v4
+        with:
+          repository: kimurazver67/reacut
+          ref: ${{ inputs.tag }}
+          ssh-key: ${{ secrets.SOURCE_DEPLOY_KEY }}
+          persist-credentials: false
+          path: src
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+      - name: Version matches tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: test "v$(node -p 'require("./package.json").version')" = "$TAG"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            src/media-tools
+            src/.media-build/downloads
+          key: media-tools-${{ runner.arch }}-${{ hashFiles('src/scripts/build-media-tools.mjs') }}
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run media:build
+      - run: npx vitest run --exclude '**/*.integration.test.ts'
+      - run: npm run licenses
+      - run: npm run dist:mac:installer
+      - name: Verify app
+        run: |
+          set -euo pipefail
+          v="$(node -p 'require("./package.json").version')"
+          ditto -x -k "release/ReaCut-$v-arm64-mac.zip" /tmp/check
+          codesign --verify --deep --strict /tmp/check/ReaCut.app
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' /tmp/check/ReaCut.app/Contents/Info.plist)" = "$v"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          v="${TAG#v}"
+          cp LICENSE release/LICENSE.txt
+          cp THIRD_PARTY_NOTICES.md release/THIRD_PARTY_NOTICES.md
+          tar -czf "release/ReaCut-$v-media-tool-sources.tar.gz" -C media-tools/darwin-arm64 sources licenses manifest.json
+          cd release
+          shasum -a 256 "ReaCut-$v-arm64.dmg" "ReaCut-$v-arm64-mac.zip" "ReaCut-$v-media-tool-sources.tar.gz" > SHA256SUMS.txt
+          notes="$(git -C .. log -1 --format=%B "$TAG" 2>/dev/null || true)"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "ReaCut $v" --notes "${notes:-ReaCut $v}" \
+            "ReaCut-$v-arm64.dmg" "ReaCut-$v-arm64-mac.zip" "ReaCut-$v-media-tool-sources.tar.gz" LICENSE.txt THIRD_PARTY_NOTICES.md SHA256SUMS.txt
