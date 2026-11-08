@@ -60,7 +60,22 @@ jobs:
           restore-keys: electron-${{ runner.arch }}-
       - run: npm ci
       # github.com/releases/download sometimes answers 504 for minutes.
-      - run: for i in 1 2 3 4 5 6; do node node_modules/electron/install.js && exit 0; echo "retry $i"; sleep $((i * 20)); done; exit 1
+      - name: Install Electron
+        run: |
+          # releases/download on github.com sometimes returns 504 for minutes.
+          # From the third attempt use a mirror; install.js still verifies the
+          # zip against checksums.json shipped in the electron npm package.
+          ok=
+          for i in 1 2 3 4 5 6; do
+            if [ "$i" -ge 3 ]; then export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/; fi
+            if node node_modules/electron/install.js; then ok=1; break; fi
+            echo "retry $i"; sleep $((i * 20))
+          done
+          [ -n "$ok" ]
+          mkdir -p "$GITHUB_WORKSPACE/electron-dist"
+          zip=$(find ~/Library/Caches/electron -name "electron-v$(node -p 'require("electron/package.json").version')-darwin-arm64.zip" | head -1)
+          [ -n "$zip" ] && cp "$zip" "$GITHUB_WORKSPACE/electron-dist/"
+          ls -l "$GITHUB_WORKSPACE/electron-dist"
       - run: npm run media:build
       - if: always()
         uses: actions/cache/save@v4
@@ -75,7 +90,7 @@ jobs:
           REACUT_FFMPEG: ${{ github.workspace }}/src/media-tools/darwin-arm64/ffmpeg
           REACUT_FFPROBE: ${{ github.workspace }}/src/media-tools/darwin-arm64/ffprobe
       - run: npm run licenses
-      - run: for i in 1 2 3 4; do npm run dist:mac:installer && exit 0; echo "retry $i"; rm -rf release; sleep $((i * 30)); done; exit 1
+      - run: for i in 1 2 3 4; do npm run dist:mac:installer -- -c.electronDist="$GITHUB_WORKSPACE/electron-dist" && exit 0; echo "retry $i"; rm -rf release; sleep $((i * 30)); done; exit 1
       - name: Verify app
         run: |
           set -euo pipefail
