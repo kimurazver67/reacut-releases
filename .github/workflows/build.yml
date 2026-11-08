@@ -47,8 +47,16 @@ jobs:
             src/media-tools
             src/.media-build/downloads
           key: media-tools-${{ runner.arch }}-${{ hashFiles('src/scripts/build-media-tools.mjs') }}
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+          key: electron-${{ runner.arch }}-${{ hashFiles('src/package-lock.json') }}
+          restore-keys: electron-${{ runner.arch }}-
       - run: npm ci
-      - run: node node_modules/electron/install.js
+      # github.com/releases/download sometimes answers 504 for minutes.
+      - run: for i in 1 2 3 4 5 6; do node node_modules/electron/install.js && exit 0; echo "retry $i"; sleep $((i * 20)); done; exit 1
       - run: npm run media:build
       - run: npx vitest run --exclude '**/*.integration.test.ts'
         env:
@@ -56,7 +64,7 @@ jobs:
           REACUT_FFMPEG: ${{ github.workspace }}/src/media-tools/darwin-arm64/ffmpeg
           REACUT_FFPROBE: ${{ github.workspace }}/src/media-tools/darwin-arm64/ffprobe
       - run: npm run licenses
-      - run: npm run dist:mac:installer
+      - run: for i in 1 2 3 4; do npm run dist:mac:installer && exit 0; echo "retry $i"; rm -rf release; sleep $((i * 30)); done; exit 1
       - name: Verify app
         run: |
           set -euo pipefail
