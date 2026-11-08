@@ -77,6 +77,8 @@ jobs:
           [ -n "$zip" ] && cp "$zip" "$GITHUB_WORKSPACE/electron-dist/"
           ls -l "$GITHUB_WORKSPACE/electron-dist"
       - run: npm run media:build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - if: always()
         uses: actions/cache/save@v4
         with:
